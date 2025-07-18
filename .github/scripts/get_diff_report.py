@@ -77,6 +77,8 @@ def main() -> int:  # pragma: no cover
     )
     md_group.add_argument(
         "--short",
+        dest="short",
+        action="store_true",
         help="Output only the short text report",
     )
     parser.set_defaults(markdown=False)
