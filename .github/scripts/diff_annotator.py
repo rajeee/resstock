@@ -63,9 +63,9 @@ def diff_report(path: str) -> tuple[str, str]:
     Falls back to git diff for minimal functionality.
     """
     helper = ROOT / ".github" / "scripts" / "get_diff_report.py"
-    plain = run_cmd(["uv", "run", str(helper), path])
-    md = run_cmd(["uv", "run", str(helper), path, "--markdown"])
-    return plain, md
+    full = run_cmd(["uv", "run", str(helper), path])
+    short = run_cmd(["uv", "run", str(helper), path, "--short"])
+    return full, short
 
 def chunk(seq, size):
     for i in range(0, len(seq), size):
@@ -105,21 +105,21 @@ def update_annotations(check_run):
 
     # Collect diffs
     annotations = []
-    markdown_blocks = []
+    short_summary = []
     for f in files:
-        plain, md = diff_report(f)
-        markdown_blocks.append(md)
+        full, short = diff_report(f)
+        short_summary.append(short)
         annotations.append(
             {
                 "path": f,
                 "start_line": 1,
                 "end_line": 1,
                 "annotation_level": "notice",
-                "message": plain[:8000],  # GitHub per-annotation limit
+                "message": full[:8000],  # GitHub per-annotation limit
             }
         )
 
-    summary = "\n\n".join(markdown_blocks)[:65535]
+    summary = "\n\n".join(short_summary)[:65535]
 
     # Step 1: push annotation chunks without summary
     for batch in chunk(annotations, 50):  # API limit = 50 annotations/request
