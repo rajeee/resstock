@@ -43,17 +43,18 @@ jobs:
           name: options_lookup
           path: resources/options_lookup.tsv
           if-no-files-found: error
-      - name: Commit the integration tests results
-        shell: bash        
+      - name: Check for changes in options_lookup.tsv
+        shell: bash
         run: |
-          branch_name="${{ github.head_ref || github.ref_name }}"
-          git pull origin $branch_name
+          # Stage the file to be checked
           git add resources/options_lookup.tsv
-          git status
-          if [[ $(git diff --cached --exit-code) ]]; then
-            git config --global user.email "github-action@users.noreply.github.com"
-            git config --global user.name "GitHub Action"
-            git commit -m "Options lookup fix"
-            echo "Pushing to branch: $branch_name"
-            git push -u origin $branch_name
+      
+          # Check for any staged changes. --quiet makes git silent and faster.
+          # The '!' inverts the exit code, so this block runs if there IS a difference.
+          if ! git diff --cached --quiet; then
+            echo "Error: 'resources/options_lookup.tsv' was modified by the formatting script."
+            echo "Please run the formatting script locally, commit, and push the changes."
+            exit 1
+          else
+            echo "'resources/options_lookup.tsv' is correctly formatted. No changes detected."
           fi
