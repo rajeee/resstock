@@ -132,7 +132,7 @@ jobs:
         run: |
           SHA=$(git rev-parse HEAD)
           required_checks=( \
-            "format-files" "format-files_commit", "unit-tests" "build-documentation" \
+            "format-files" "format-files_commit" "unit-tests" "build-documentation" \
             "analysis-tests" "integration-tests" \
             "compare-tools" "compare-results" \
             "update-results" "sdr-options-analysis" "sdr-integration-tests" "sdr-diff")
