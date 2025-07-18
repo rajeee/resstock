@@ -42,74 +42,11 @@ jobs:
           with:
             python-version: '3.11'
             enable-cache: false
-
-        - name: Determine changed SDR CSV files
-          id: changed_files
-          run: |
-            git fetch origin develop
-            files=$(git diff --name-only origin/develop...HEAD -- 'test/base_results/upgrades/sdr_annual/*.csv')
-            # Expose list for downstream steps
-            echo "files<<EOF" >> "$GITHUB_OUTPUT"
-            echo "$files" >> "$GITHUB_OUTPUT"
-            echo "EOF" >> "$GITHUB_OUTPUT"
-
-        - name: Create SDR diff check run (if any files changed)
-          id: create-check
-          if: ${{ steps.changed_files.outputs.files != '' }}
+        - name: Run SDR diff integrator
           env:
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            REPO: ${{ github.repository }}
-          run: |
-            SHA=$(git rev-parse HEAD)
-            check_run_id=$(gh api repos/$REPO/check-runs \
-              -F name='SDR diff' \
-              -F head_sha="$SHA" \
-              -F status='in_progress' --jq '.id')
-            echo "check_run_id=$check_run_id" >> "$GITHUB_OUTPUT"
-            echo "SHA=$SHA" >> "$GITHUB_OUTPUT"
-
-        - name: Skip SDR diff (if no files changed)
-          if: ${{ steps.changed_files.outputs.files == '' }}
-          env:
-            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            REPO: ${{ github.repository }}
-          run: |
-            SHA=$(git rev-parse HEAD)
-            gh api repos/$REPO/check-runs \
-              -f name='SDR diff' \
-              -f head_sha="$SHA" \
-              -f conclusion='success' \
-              -f status='completed' \
-              -f output[title]='SDR diff' \
-              -f output[summary]='No SDR annual CSV changes.' >/dev/null
-
-        - name: Build annotations and complete check run
-          if: ${{ steps.changed_files.outputs.files != '' }}
-          env:
-            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            REPO: ${{ github.repository }}
-          run: |
-            files="${{ steps.changed_files.outputs.files }}"
-            check_run_id="${{ steps.create-check.outputs.check_run_id }}"
-            # Accumulate annotations and markdown summary
-            annots="[]"
-            all_diffs=""
-            for f in $files; do
-              echo "--- Processing file: $f ---"
-              plain_diff_output=$(uv run .github/scripts/get_diff_report.py "$f")
-              markdown_diff_output=$(uv run .github/scripts/get_diff_report.py "$f" --markdown)
-              all_diffs+="$markdown_diff_output"
-              annots=$(jq --arg path "$f" --arg msg "$plain_diff_output" \
-                '. += [{path:$path,start_line:1,end_line:1,annotation_level:"notice",message:$msg}]' <<< "$annots")
-            done
-            output_json=$(jq -n --argjson ann "$annots" --arg summary "$all_diffs" '{title:"SDR results diff",summary:$summary,annotations:$ann}')
-            cat <<EOF | gh api repos/$REPO/check-runs/$check_run_id -X PATCH --input -
-            {
-              "conclusion": "success",
-              "status": "completed",
-              "output": $output_json
-            }
-            EOF
+            BASE_REF: develop
+          run: uv run .github/scripts/sdr_diff_integrator.py
 
   pass-checks:
     needs: sdr-diff
