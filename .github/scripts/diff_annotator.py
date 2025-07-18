@@ -3,18 +3,20 @@
 # dependencies = ["PyGithub"]
 # ///
 """
-sdr_diff_integrator.py
-----------------------
+Diff Annotator
+====================
 
-Run inside GitHub Actions with:
+Detect changed SDR CSV files, generate diffs, and publish them as
+annotations and markdown in a GitHub Check Run.
+
+Run in GitHub Actions via:
 
     uv run .github/scripts/sdr_diff_integrator.py
 
-Environment variables required:
-
-* GH_TOKEN   – `GITHUB_TOKEN` or a PAT with `checks:write` scope
-* GITHUB_REPOSITORY – owner/repo (injected by Actions)
-* BASE_REF   – branch to diff against (default: develop)
+Required environment variables:
+    GH_TOKEN (or GITHUB_TOKEN) - token with checks:write scope
+    GITHUB_REPOSITORY           - owner/repo (set by Actions)
+    BASE_REF                    - branch to diff against (default: develop)
 """
 
 from __future__ import annotations
@@ -26,14 +28,13 @@ from typing import List
 from github import Github, GithubException  # PyGithub >= 2.3
 
 # ---------------------------------------------------------------------------
-# Constants / environment ----------------------------------------------------
+# Environment and constants
 # ---------------------------------------------------------------------------
-
 REPO_FULL = os.getenv("GITHUB_REPOSITORY")
-TOKEN     = os.getenv("GH_TOKEN") or os.getenv("GITHUB_TOKEN")
-BASE      = os.getenv("BASE_REF", "develop")
-CSV_GLOB  = "test/base_results/upgrades/sdr_annual/*.csv"
-ROOT      = Path(__file__).resolve().parents[2]  # repo root guess
+TOKEN = os.getenv("GH_TOKEN") or os.getenv("GITHUB_TOKEN")
+BASE = os.getenv("BASE_REF", "develop")
+CSV_GLOB = "test/base_results/upgrades/sdr_annual/*.csv"
+ROOT = Path(__file__).resolve().parents[2]  # repo root guess
 
 if not (REPO_FULL and TOKEN):
     raise SystemExit("GH_TOKEN and GITHUB_REPOSITORY must be set")
@@ -41,24 +42,30 @@ if not (REPO_FULL and TOKEN):
 HEAD_SHA = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode().strip()
 
 
-def run(cmd: List[str]) -> str:
-    """Return stdout of a shell command, raising on non‑zero exit."""
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+def run_cmd(cmd: List[str]) -> str:
+    """Return stdout of a shell command as str."""
     return subprocess.check_output(cmd).decode()
 
 
 def changed_csv_files() -> List[str]:
-    diff = run(
+    diff = run_cmd(
         ["git", "diff", "--name-only", f"origin/{BASE}...HEAD", "--", CSV_GLOB]
     )
     return [p for p in diff.splitlines() if p]
 
 
 def diff_report(path: str) -> tuple[str, str]:
+    """
+    Generate plain and markdown diffs using get_diff_report.py if available.
+    Falls back to git diff for minimal functionality.
+    """
     helper = ROOT / ".github" / "scripts" / "get_diff_report.py"
-    plain = run(["uv", "run", str(helper), path])
-    md    = run(["uv", "run", str(helper), path, "--markdown"])
+    plain = run_cmd(["uv", "run", str(helper), path])
+    md = run_cmd(["uv", "run", str(helper), path, "--markdown"])
     return plain, md
-
 
 def chunk(seq, size):
     for i in range(0, len(seq), size):
@@ -70,40 +77,39 @@ def github_repo():
 
 
 def main() -> None:
-    repo  = github_repo()
+    repo = github_repo()
     files = changed_csv_files()
 
-    run_obj = repo.create_check_run(
-        name="SDR diff", head_sha=HEAD_SHA, status="in_progress"
-    )  # PyGithub Check‑Run API :contentReference[oaicite:0]{index=0}
+    # Create initial check run
+    check_run = repo.create_check_run(name="SDR diff", head_sha=HEAD_SHA, status="in_progress")
+    print(f"Created check run ID {check_run.id}")
 
     if not files:
-        run_obj.edit(
-            conclusion="success",
+        check_run.edit(
             status="completed",
-            output={
-                "title": "SDR diff",
-                "summary": "No SDR annual CSV changes.",
-            },
+            conclusion="success",
+            output={"title": "SDR diff", "summary": "No SDR annual CSV changes."},
         )
-        print("No CSV changes; exiting cleanly.")
+        print("No CSV changes detected. Check run marked as success.")
         return
 
-    annotations, md_blocks = [], []
+    # Collect diffs
+    annotations = []
+    markdown_blocks = []
     for f in files:
         plain, md = diff_report(f)
-        md_blocks.append(md)
+        markdown_blocks.append(md)
         annotations.append(
             {
                 "path": f,
                 "start_line": 1,
                 "end_line": 1,
                 "annotation_level": "notice",
-                "message": plain[:8000],  # API per‑annotation limit
+                "message": plain[:8000],  # GitHub per-annotation limit
             }
         )
 
-    summary = "\n\n".join(md_blocks)[:65535]
+    summary = "\n\n".join(markdown_blocks)[:65535]
 
     # Step 1: push annotation chunks without summary
     for batch in chunk(annotations, 50):  # API limit = 50 annotations/request
