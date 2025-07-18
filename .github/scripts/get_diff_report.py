@@ -140,7 +140,8 @@ def main() -> int:  # pragma: no cover
             report_text += f"All columns except {len(matched_cols)} columns have value changes\n"
 
     if args.short:
-        return report_text
+        print(report_text)
+        return 0
 
     full_report = cmp.report().strip()
 
