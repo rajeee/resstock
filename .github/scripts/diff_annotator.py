@@ -116,7 +116,7 @@ def main() -> None:
         check_run.edit(
             status="in_progress",
             conclusion="success",
-            output={"title": "SDR results diff", "annotations": batch},
+            output={"title": "SDR results diff", "annotations": batch, "summary": "Uploading annotation batch…"},
         )
 
     # Step 2: final patch with summary
