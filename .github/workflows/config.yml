@@ -24,7 +24,7 @@ env:
   BUILDSTOCK_QUERY_BRANCH: main
 
 jobs:
-  format-files:
+  format-files_fail:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -57,4 +57,38 @@ jobs:
             exit 1
           else
             echo "'resources/options_lookup.tsv' is correctly formatted. No changes detected."
+          fi
+
+  format-files_commit:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - name: Format Files
+        shell: bash
+        run: |
+          sed -i -e 's/[[:space:]]*$//' resources/options_lookup.tsv # Remove whitespace
+          (sed -u 1q ; sort -k1 -k2) < resources/options_lookup.tsv > sorted_options_lookup.tsv
+          mv sorted_options_lookup.tsv resources/options_lookup.tsv # Sort on first two columns
+
+      - name: Upload formatted options_lookup 
+        uses: actions/upload-artifact@v4
+        with:
+          name: options_lookup
+          path: resources/options_lookup.tsv
+          if-no-files-found: error
+      - name: Check for changes in options_lookup.tsv
+        shell: bash
+        run: |
+          branch_name="${{ github.head_ref }}"
+          git pull origin $branch_name
+          git add resources/options_lookup.tsv
+          git status
+          if [[ $(git diff --cached --exit-code) ]]; then
+            git config --global user.email "github-action@users.noreply.github.com"
+            git config --global user.name "GitHub Action"
+            git commit -m "Options lookup fix"
+            echo "Pushing to branch: $branch_name"
+            git push -u origin $branch_name
           fi
