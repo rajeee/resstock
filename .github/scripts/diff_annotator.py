@@ -125,7 +125,6 @@ def update_annotations(check_run):
     for batch in chunk(annotations, 50):  # API limit = 50 annotations/request
         check_run.edit(
             status="in_progress",
-            conclusion="success",
             output={"title": "SDR results diff", "annotations": batch, "summary": "Uploading annotation batch…"},
         )
 
