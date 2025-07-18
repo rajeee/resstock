@@ -112,12 +112,8 @@ jobs:
             EOF
 
   pass-checks:
-    # Since this workflow is only run after the `ci` workflow is completed successfully,
-    # we can safely mark all required checks as passing so branch protection rules succeed.
-    # This is necessary because the `ci` workflow can create new commits and push them to the PR branch,
-    # which will trigger all the checks as pending again. This will mark the latest commit as passing.
     needs: sdr-diff
-    if: always()
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
