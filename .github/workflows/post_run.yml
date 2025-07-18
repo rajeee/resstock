@@ -4,7 +4,7 @@ on:
   workflow_run:
     workflows: [ "ci" ]
     types:
-      - success
+      - completed
   workflow_dispatch:  # Allow manual trigger
 
 concurrency:
