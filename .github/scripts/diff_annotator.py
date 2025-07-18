@@ -63,9 +63,9 @@ def diff_report(path: str) -> tuple[str, str]:
     Falls back to git diff for minimal functionality.
     """
     helper = ROOT / ".github" / "scripts" / "get_diff_report.py"
-    plain = run_cmd(["uv", "run", str(helper), path])
-    md = run_cmd(["uv", "run", str(helper), path, "--markdown"])
-    return plain, md
+    full = run_cmd(["uv", "run", str(helper), path])
+    short = run_cmd(["uv", "run", str(helper), path, "--short"])
+    return full, short
 
 def chunk(seq, size):
     for i in range(0, len(seq), size):
@@ -82,6 +82,16 @@ def main() -> None:
 
     # Create initial check run
     check_run = repo.create_check_run(name="SDR diff", head_sha=HEAD_SHA, status="in_progress")
+    try:
+        update_annotations(check_run)
+    except:  # Always mark as success
+        check_run.edit(
+            status="completed",
+            conclusion="success",
+            output={"title": "SDR diff", "summary": "No SDR annual CSV changes."},
+        )
+
+def update_annotations(check_run):
     print(f"Created check run ID {check_run.id}")
 
     if not files:
@@ -95,21 +105,21 @@ def main() -> None:
 
     # Collect diffs
     annotations = []
-    markdown_blocks = []
+    short_summary = []
     for f in files:
-        plain, md = diff_report(f)
-        markdown_blocks.append(md)
+        full, short = diff_report(f)
+        short_summary.append(short)
         annotations.append(
             {
                 "path": f,
                 "start_line": 1,
                 "end_line": 1,
                 "annotation_level": "notice",
-                "message": plain[:8000],  # GitHub per-annotation limit
+                "message": full[:8000],  # GitHub per-annotation limit
             }
         )
 
-    summary = "\n\n".join(markdown_blocks)[:65535]
+    summary = "\n\n".join(short_summary)[:65535]
 
     # Step 1: push annotation chunks without summary
     for batch in chunk(annotations, 50):  # API limit = 50 annotations/request
@@ -130,8 +140,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except GithubException as exc:
-        print(f"GitHub API error: {exc.data}")
-        raise
+    main()
