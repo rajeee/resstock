@@ -107,7 +107,7 @@ def update_annotations(check_run):
     short_summary = []
     for f in files:
         full, short = diff_report(f)
-        print(f"{file} Report: {short}")
+        print(f"{f} Report: {short}")
         short_summary.append(short)
         annotations.append(
             {
