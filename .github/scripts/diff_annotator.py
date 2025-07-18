@@ -108,7 +108,7 @@ def update_annotations(check_run):
     for f in files:
         full, short = diff_report(f)
         print(f"{f} Report: {short}")
-        short_summary.append(short)
+        short_summary.append(f"{f}:\n{short}\n")
         annotations.append(
             {
                 "path": f,
@@ -119,7 +119,7 @@ def update_annotations(check_run):
             }
         )
 
-    summary = "\n\n".join(short_summary)[:65535]
+    summary = "\n".join(short_summary)[:65535]
 
     # Step 1: push annotation chunks without summary
     for batch in chunk(annotations, 50):  # API limit = 50 annotations/request
