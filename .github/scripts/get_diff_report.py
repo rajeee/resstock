@@ -82,6 +82,7 @@ def main() -> int:  # pragma: no cover
         help="Output only the short text report",
     )
     parser.set_defaults(markdown=False)
+    parser.set_defaults(short=False)
 
     args = parser.parse_args()
     csv_path: Path = args.csv_path
