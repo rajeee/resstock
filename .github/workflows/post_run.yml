@@ -131,7 +131,14 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           SHA=$(git rev-parse HEAD)
-          echo "Setting SDR diff status to success"
-          gh api -X POST repos/$REPO/statuses/$SHA \
-            -f state=success \
-            -f context="SDR diff" >/dev/null
+          required_checks=( \
+            "format-files" "format-files_commit", "unit-tests" "build-documentation" \
+            "analysis-tests" "integration-tests" \
+            "compare-tools" "compare-results" \
+            "update-results" "sdr-options-analysis" "sdr-integration-tests" "sdr-diff")
+          for ctx in "${required_checks[@]}"; do
+            echo "Setting $ctx status to success"
+            gh api -X POST repos/$REPO/statuses/$SHA \
+              -f state=success \
+              -f context="$ctx" >/dev/null
+          done
