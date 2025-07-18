@@ -46,7 +46,7 @@ jobs:
           env:
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             BASE_REF: develop
-          run: uv run .github/scripts/sdr_diff_integrator.py
+          run: uv run .github/scripts/diff_annotator.py
 
   pass-checks:
     needs: sdr-diff
