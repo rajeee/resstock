@@ -40,10 +40,6 @@ if not (REPO_FULL and TOKEN):
 
 HEAD_SHA = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode().strip()
 
-# ---------------------------------------------------------------------------
-# Helpers --------------------------------------------------------------------
-# ---------------------------------------------------------------------------
-
 
 def run(cmd: List[str]) -> str:
     """Return stdout of a shell command, raising on non‑zero exit."""
@@ -58,18 +54,10 @@ def changed_csv_files() -> List[str]:
 
 
 def diff_report(path: str) -> tuple[str, str]:
-    """
-    Re‑use existing diff script.  Falls back to plain `git diff` if that
-    helper isn’t present so the integrator stays self‑contained.
-    """
     helper = ROOT / ".github" / "scripts" / "get_diff_report.py"
-    if helper.exists():
-        plain = run(["uv", "run", str(helper), path])
-        md    = run(["uv", "run", str(helper), path, "--markdown"])
-        return plain, md
-    else:
-        plain = run(["git", "diff", f"origin/{BASE}...HEAD", "--", path])
-        return plain, f"```diff\n{plain}\n```"
+    plain = run(["uv", "run", str(helper), path])
+    md    = run(["uv", "run", str(helper), path, "--markdown"])
+    return plain, md
 
 
 def chunk(seq, size):
@@ -115,20 +103,24 @@ def main() -> None:
             }
         )
 
-    # GitHub limits 50 annotations per request; chunk if needed
-    summary = "\n\n".join(md_blocks)[:65535]
-    for batch in chunk(annotations, 50):
-        run_obj.edit(
-            status="completed" if batch is annotations[-50:] else "in_progress",
+    summary = "\n\n".join(markdown_blocks)[:65535]
+
+    # Step 1: push annotation chunks without summary
+    for batch in chunk(annotations, 50):  # API limit = 50 annotations/request
+        check_run.edit(
+            status="in_progress",
             conclusion="success",
-            output={
-                "title": "SDR results diff",
-                "summary": summary if batch is annotations[-50:] else "",
-                "annotations": batch,
-            },
+            output={"title": "SDR results diff", "annotations": batch},
         )
 
-    print(f"Completed check‑run #{run_obj.id} with {len(annotations)} annotation(s).")
+    # Step 2: final patch with summary
+    check_run.edit(
+        status="completed",
+        conclusion="success",
+        output={"title": "SDR results diff", "summary": summary},
+    )
+
+    print(f"Completed check run #{check_run.id} with {len(annotations)} annotation(s).")
 
 
 if __name__ == "__main__":
