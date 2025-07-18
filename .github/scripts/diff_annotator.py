@@ -103,7 +103,7 @@ def main() -> None:
             }
         )
 
-    summary = "\n\n".join(markdown_blocks)[:65535]
+    summary = "\n\n".join(md_blocks)[:65535]
 
     # Step 1: push annotation chunks without summary
     for batch in chunk(annotations, 50):  # API limit = 50 annotations/request
