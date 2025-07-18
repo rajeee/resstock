@@ -79,8 +79,7 @@ def github_repo():
 
 def main() -> None:
     repo = github_repo()
-    files = changed_csv_files()
-
+    
     # Create initial check run
     check_run = repo.create_check_run(name="SDR diff", head_sha=HEAD_SHA, status="in_progress")
     try:
@@ -93,8 +92,7 @@ def main() -> None:
         )
 
 def update_annotations(check_run):
-    print(f"Created check run ID {check_run.id}")
-
+    files = changed_csv_files()
     if not files:
         check_run.edit(
             status="completed",
