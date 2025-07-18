@@ -24,6 +24,7 @@ import os
 import subprocess
 from pathlib import Path
 from typing import List
+import traceback
 
 from github import Github, GithubException  # PyGithub >= 2.3
 
@@ -88,7 +89,7 @@ def main() -> None:
         check_run.edit(
             status="completed",
             conclusion="success",
-            output={"title": "SDR diff", "summary": "No SDR annual CSV changes."},
+            output={"title": "SDR diff", "summary": f"Diff calculation crashed: {traceback.format_exc()}"},
         )
 
 def update_annotations(check_run):
@@ -115,7 +116,7 @@ def update_annotations(check_run):
                 "start_line": 1,
                 "end_line": 1,
                 "annotation_level": "notice",
-                "message": full[:8000],  # GitHub per-annotation limit
+                "message": full[:65000],  # GitHub per-annotation limit
             }
         )
 
